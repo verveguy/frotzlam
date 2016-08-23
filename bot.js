@@ -8,6 +8,8 @@ const AWS = require('aws-sdk');
 
 const S3_BUCKET_NAME = "frotzlamsessions";
 
+//TODO: clean up this hackery of "preamble" and "postamble"
+// by making the line stripper smarter
 const games = {
   zork1: { filename: 'ZORK1.DAT', preamble: 14, postamble: 2}
 };
@@ -278,6 +280,8 @@ function strip_carets(arr)
   return arr;
 }
 
+//TODO: clean up this hackery of "preamble" and "postamble"
+// by making the line stripper smarter
 function strip_lines(text, preamble, postamble)
 {
   // this is sloppy but we don't have much text
