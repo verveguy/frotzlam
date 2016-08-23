@@ -1,3 +1,5 @@
+"use strict";
+/*jshint esversion: 6 */
 
 const botBuilder = require('claudia-bot-builder');
 const fs = require('fs');
@@ -7,154 +9,247 @@ const AWS = require('aws-sdk');
 const S3_BUCKET_NAME = "frotzlamsessions";
 
 const games = {
-  zork1: { filename: 'ZORK1.DAT', preamble: 14, postamble: 3}
+  zork1: { filename: 'ZORK1.DAT', preamble: 14, postamble: 2}
 };
 
 
-module.exports = botBuilder(function (message, request) {
-
+module.exports = /* async */ botBuilder(function (message, request) {
   // TODO: get this from some kind of config
   const game = games['zork1'];
+
+  return Promise.resolve(message.originalRequest.channel_id)
+  .then( (session_id) => {
+    return load_saved_state(session_id)
+      .then( (saves) => {     // then execute the dfrotz command (sync)
+      let cmd_line;
+      let text = "to be determined...";  
   
-  var isError = false;
-  var text;
+      var command = message.text;
+      if (command === "") {
+        console.log("No command given. Executing dfrotz");
+      }
+      else {
+        console.log("Command is: " + command);
+        command = command + "\n";
+      }
   
-  try
-  {
-    var session_id = message.originalRequest.channel_id;
-    const cmd_file = `/tmp/${session_id}.in`;
-    var cmd;
+      if (saves.had_save) {
+        cmd_line = `restore\n${saves.save_file}\n\\ch1\n\\w\n${command}save\n${saves.save_file}\ny\n`;
+      }
+      else {
+        cmd_line = `\\ch1\n\\w\n${command}save\n${saves.save_file}\n`;
+      }
+
+      const cmd_file = `/tmp/${session_id}.in`;
+      // build up a file with cmd content
+      fs.writeFileSync(cmd_file, cmd_line);
+
+      const gamefile = './games/' + game.filename;
+  
+      try {
+        console.log("Attempting dfrotz execution with cmd " + cmd_line );
+        const buffer = execSync(`./dfrotz -i -Z 0 ${gamefile} < ${cmd_file}`);
+        text = `${buffer}`;
+        console.log("raw response: " + text);
     
+        //fs.unlinkSync(cmd_file);
+        if (saves.had_save) {
+          text = strip_lines(text, game.preamble, game.postamble);
+        }
+        else {
+          text = strip_lines(text, 1, game.postamble);
+        }
+      }
+      catch (err) {
+        text = `${err.stdout}`;
+        console.error("dfrotz execution failed: " + text);
+        console.dir(err);
+        throw new Error(text);
+      }
+
+      // then put the save file (async nested promise)
+      return put_saves(session_id)
+      .then ( (ignore) => {
+        console.log("Put save logically complete");
+        return `${text}`;
+      })
+      .catch( (error) => {
+        console.error("Put save failed");
+        throw new Error("error: failed to save game state");
+      });
+    })
+    .then ( (frotz) => {
+      let reply_text;
+      let reply = frotz;
+      if (message.type === 'slack-slash-command') {
+        const slackTemplate = botBuilder.slackTemplate;
+        const response = new slackTemplate(reply);
+        response.channelMessage(true).disableMarkdown(true);
+        reply = response.get();
+        reply_text = reply.text; 
+      }
+      else {
+        reply_text = reply; 
+      }
+      // finally, resolve with this response
+      console.log("response: " + reply_text);
+      return reply;
+    })
+    .catch ( (error) => {
+      let reply_text;
+      //reply = debug_dump(text);
+      let reply = "error: " + error;
+      if (message.type === 'slack-slash-command') {
+        const slackTemplate = botBuilder.slackTemplate;
+        let response = new slackTemplate(reply);
+        response.channelMessage(true).disableMarkdown(true);
+        reply = response.get(); 
+        reply_text = reply.text; 
+      }
+      else {
+        reply_text = reply; 
+      }
+      // finally, resolve with this response
+      console.log("error response: " + reply_text);
+      return reply;
+    });
+  });
+});
+
+function load_saved_state(session_id) {
+
     console.log("Fetching saves for " + session_id);
 
     var saves = fetch_saves(session_id);
-
-    var command = message.text;
-    if (command !== "")
-      command = command + "\n";
-    
-    if (saves.had_save) {
-      cmd = `restore\n${saves.save_file}\n\\ch1\n\\w\n${command}save\n${saves.save_file}\ny\n`;
-    }
-    else {
-      cmd = `\\ch1\n\\w\n${command}save\n${saves.save_file}\n`;
-    }
-
-    // build up a file with cmd content
-    fs.writeFileSync(cmd_file, cmd);
-
-    var gamefile = './games/' + game.filename;
-    
-    try {
-      console.log("Attempting dfrotz execution with cmd " + cmd );
-      var buffer = execSync(`./dfrotz -i -Z 0 ${gamefile} < ${cmd_file}`);
-      text = `${buffer}`;
-      console.log("raw response: " + text);
-      
-      //fs.unlinkSync(cmd_file);
-      if (saves.had_save) {
-        text = strip_lines(text, game.preamble, game.postamble);
-      }
-      else {
-        text = strip_lines(text, 1, game.postamble);
-      }
-      
-      put_saves(session_id);
-    }
-    catch (err) {
-      text = `${err.stdout}`;
-      console.error("dfrotz execution failed: " + text);
-      console.dir(err);
-      isError = true;
-    }
   
-  }
-  catch (err) {
-      ;
-  }
-  
-  var reply = `${text}`;
-
-  console.log("response: " + reply);
-  
-  //reply = debug_dump(reply);
-  
-  if (message.type === 'slack-slash-command') {
-    const slackTemplate = botBuilder.slackTemplate;
-    var response = new slackTemplate(reply);
-    response.channelMessage(!isError).disableMarkdown(true);
-    reply = response.get(); 
-  }
-  
-  return reply;
-});
+    return saves;
+}
 
 
-// figure out if we have a save file already
-// TODO: make this read from some lamda-safe cache and stash as a temp file
-
-function session_file(session_id)
+function session_filename(session_id)
 {
   return `/tmp/${session_id}.save`;
 }
 
-function fetch_saves(session_id)
+// figure out if we have a save file already
+
+function /* async */ fetch_saves(session_id)
 {
-  var had_save = false;
-  
-  try {
-    //get_session_s3(session_id);
-    var stats = fs.statSync(session_file(session_id));
-    had_save = stats.isFile();
-  }
-  catch (err) {
-    console.log("Failed to fetch from S3");
-    console.dir(err);
-    had_save = false;
-  }
-    
-  return { had_save: had_save, save_file: session_file(session_id) };
+  return  Promise.resolve(session_filename(session_id))
+  .then( (session_file) => {
+    //return get_session(session_id)
+    return get_session_s3(session_id)
+    .then( (value) => {
+      // console.log("Checking local tmp file " + session_file);
+      try {
+        // const buffer = execSync('ls -al /tmp');
+        // const text = `${buffer}`;
+        // console.log("tmp dir: " + text);
+      
+        const stats = fs.statSync(session_file);
+        let had_save = stats.isFile();
+        console.log("Found local tmp file. Continuing game");
+        return { had_save: had_save, save_file: session_file };
+      }
+      catch (err) {
+        // console.error(err);
+        console.log("Local tmp file doesn't exist. Proceeding as new game");
+        // we continue, this isn't an error per se
+        return { had_save: false, save_file: session_file };
+      }
+    })
+    .catch ( (error) => {
+      console.log("Failed to fetch state. Proceeding as new game");
+      // console.dir(error);
+      // we continue, this isn't an error per se
+      return { had_save: false, save_file: session_file };
+    });
+  });
 }
 
-function get_session_s3(session_id)
+function /* async */ get_session(session_id)
 {
-  var save_file = session_file(session_id);
-  var s3 = new AWS.S3();
-  var params = { Bucket: S3_BUCKET_NAME, Key: session_id };
-  var file = fs.createWriteStream(save_file);
-  s3.getObject(params).createReadStream().pipe(file);  
+  return Promise.resolve(session_id)
+  .then((session_id) => {
+    console.log("NOOP get state session id:" + session_id);
+    return "dummy";
+  });
+}
+
+process.on('uncaughtException', function (err) {
+  console.log("Uncaught exception: " + err);
+})
+
+function /* async */ get_session_s3(session_id)
+{
+  return Promise.resolve(session_id)
+  .then( (session_id) => {
+    // check if the stupid object exists with headObject
+    console.log("About to S3 headObject");
+    let s3 = new AWS.S3({params: {Bucket: S3_BUCKET_NAME, Key: session_id}});
+    return s3.headObject({Bucket: S3_BUCKET_NAME, Key: session_id }).promise()
+    .then( (dummy) => {
+      console.log("dummy: " + dummy);
+      return new Promise((resolve, reject) => {
+        let session_file = session_filename(session_id);
+        let file = fs.createWriteStream(session_file);
+        file.on("finish", () => resolve(session_file));
+        file.on("error", err => {
+          console.log("S3 get failed with error:" + err);
+          reject(err);
+        });
+        console.log("About to S3 getObject");
+        let s3 = new AWS.S3({params: {Bucket: S3_BUCKET_NAME, Key: session_id}});
+        var getReq = s3.getObject().createReadStream().pipe(file);
+      });
+    })
+    .catch( (error) => {
+      console.log("S3 head failed with error:" + error);
+      throw new Error(error);
+    });
+  });
 }
 
 
 // put the save file back into a lambda-safe cache
-function put_saves(session_id)
+
+function /* async */ put_saves(session_id)
 {
-  try {
-    put_session_s3(session_id);
-  }
-  catch (err)
-  {
-    // TODO: what to do?
-    console.log("S3 put failed for session: " + session_id);
-    console.dir(err);
-  }
+  return put_session_s3(session_id);
+  //return put_session(session_id);
 }
 
-function put_session_s3(session_id)
+function /* async */ put_session(session_id)
 {
-  var save_file = session_file(session_id);
+  return Promise.resolve(session_id)
+  .then((session_id) => {
+    console.log("NOOP put state session id:" + session_id);
+    return "dummy";
+  });
+}
 
-  var body = fs.createReadStream(save_file);
-  var s3obj = new AWS.S3({params: {Bucket: S3_BUCKET_NAME, Key: session_id }});
-  
-  s3obj.upload({Body: body}).
-    on('httpUploadProgress', function(evt) { console.log(evt); }).
-    send(function(err, data) { console.log(err, data) });
+function /* async */ put_session_s3(session_id)
+{
+  return Promise.resolve(session_id)
+  .then( (session_id) => {
+    var save_file = session_filename(session_id);
+    var body = fs.createReadStream(save_file);
+    var s3 = new AWS.S3({params: {Bucket: S3_BUCKET_NAME, Key: session_id }});
+    return s3.putObject({Body: body}).promise();
+  })
+  .catch( (error) => {
+    console.log("S3 put failed with error:" + error);
+    throw new Error(error);
+  });
 }
 
 function filterCrud(line, index, array)
 {
   if (line === ">Compression mode SPANS, hiding top 1 lines")
+    return false;
+  if (line.startsWith(">Please enter a filename"))
+    return false;
+  if (line.startsWith(">>Please enter a filename"))
     return false;
   if (line === "Ok.")
     return false;
