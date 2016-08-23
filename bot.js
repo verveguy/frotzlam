@@ -290,8 +290,6 @@ function strip_lines(text, preamble, postamble)
 
   lines = lines.slice(preamble, lines.length - postamble);
   
-  //lines = strip_carets(lines, 0);
-  //lines = strip_carets(lines, 1);
   lines = strip_carets(lines);
   
   // join the array back into a single string
