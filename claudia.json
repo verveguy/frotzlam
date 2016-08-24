@@ -5,14 +5,14 @@
     "region": "us-east-1"
   },
   "api": {
-    "id": "nbli190u11",
+    "id": "nyukny1tnk",
     "module": "bot",
-    "url": "https://nbli190u11.execute-api.us-east-1.amazonaws.com/latest",
+    "url": "https://nyukny1tnk.execute-api.us-east-1.amazonaws.com/latest",
     "deploy": {
-      "facebook": "https://nbli190u11.execute-api.us-east-1.amazonaws.com/latest/facebook",
-      "skype": "https://nbli190u11.execute-api.us-east-1.amazonaws.com/latest/skype",
-      "telegram": "https://nbli190u11.execute-api.us-east-1.amazonaws.com/latest/telegram",
-      "slackSlashCommand": "https://nbli190u11.execute-api.us-east-1.amazonaws.com/latest/slack/slash-command"
+      "facebook": "https://nyukny1tnk.execute-api.us-east-1.amazonaws.com/latest/facebook",
+      "skype": "https://nyukny1tnk.execute-api.us-east-1.amazonaws.com/latest/skype",
+      "telegram": "https://nyukny1tnk.execute-api.us-east-1.amazonaws.com/latest/telegram",
+      "slackSlashCommand": "https://nyukny1tnk.execute-api.us-east-1.amazonaws.com/latest/slack/slash-command"
     }
   }
 }
