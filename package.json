@@ -13,8 +13,9 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "create": "claudia create --region us-east-1 --policies policies --api-module bot",
+    "create": "claudia create --region us-east-1 --policies policies --timeout 10 --allow-recursion --api-module bot",
     "deploy": "claudia update",
+    "destroy": "claudia destroy",
     "reconfigure": "claudia update",
     "configure-slack": "claudia update --configure-slack-slash-app",
     "start": "ntl"
