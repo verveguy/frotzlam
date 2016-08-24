@@ -5,6 +5,7 @@ const botBuilder = require('claudia-bot-builder');
 const fs = require('fs');
 const execSync = require('child_process').execSync;
 const AWS = require('aws-sdk');
+const lambda = new AWS.Lambda();
 
 const S3_BUCKET_NAME = "frotzlamsessions";
 
@@ -15,20 +16,69 @@ const games = {
 };
 
 
-module.exports = /* async */ botBuilder(function (message, request) {
-  // TODO: get this from some kind of config
+const api = /* async */ botBuilder(function (message, apiRequest) {
+
+  // this is our "quick response" to ensure slack hears from us promptly.
+  // See https://claudiajs.com/tutorials/slack-delayed-responses.html
+  return new Promise((resolve, reject) => {
+    lambda.invoke({
+      FunctionName: apiRequest.lambdaContext.functionName,
+      Qualifier: apiRequest.lambdaContext.functionVersion,
+      InvocationType: 'Event',
+      Payload: JSON.stringify({
+        slackEvent: message // this will enable us to detect the event later and filter it
+      })
+    }, (err, done) => {
+      if (err) return reject(err);
+      resolve(done);
+    });
+  }).then(() => {
+    // the initial response
+    let reply = { response_type: 'in_channel', mrkdwn: false };
+    if (message.text === "") {
+      reply.text = "";
+    }
+    else {
+      reply.text = "> " + message.text;
+    }
+    return reply;
+  }).catch(() => {
+    console.log("Failed to invoke pass-through lambda");
+    return "Failed to invoke pass-through lambda";
+  });
+});
+
+
+// interceptor to handle recursive call (the actual call we intend)
+
+const slackDelayedReply = botBuilder.slackDelayedReply;
+
+api.intercept((event) => {
+  if (!event.slackEvent) // if this is a normal web request, let it run
+    return event;
+
+  const message = event.slackEvent;
+
+    // TODO: get this from some kind of config
   const game = games['zork1'];
 
   return Promise.resolve(message.originalRequest.channel_id)
   .then( (session_id) => {
     return load_saved_state(session_id)
-      .then( (saves) => {     // then execute the dfrotz command (sync)
+    .then( (saves) => {     // then execute the dfrotz command (sync)
       let cmd_line;
       let text = "to be determined...";  
-  
-      var command = message.text;
+      let isNewGame = saves.had_save;
+      
+      let command = message.text;
       if (command === "") {
-        console.log("No command given. Executing dfrotz");
+        if (isNewGame) {
+          console.log("Game in progress, but no command given. Assume 'look' intended");
+          command = "look\n";
+        }
+        else {
+          console.log("No command given. Executing dfrotz");
+        }
       }
       else {
         console.log("Command is: " + command);
@@ -95,8 +145,9 @@ module.exports = /* async */ botBuilder(function (message, request) {
       }
       // finally, resolve with this response
       console.log("response: " + reply_text);
-      return reply;
+      return slackDelayedReply(message, reply);
     })
+    .then(() => false) // prevent normal execution
     .catch ( (error) => {
       let reply_text;
       //reply = debug_dump(text);
@@ -117,6 +168,8 @@ module.exports = /* async */ botBuilder(function (message, request) {
     });
   });
 });
+
+
 
 function load_saved_state(session_id) {
 
@@ -177,10 +230,6 @@ function /* async */ get_session(session_id)
     return "dummy";
   });
 }
-
-process.on('uncaughtException', function (err) {
-  console.log("Uncaught exception: " + err);
-})
 
 function /* async */ get_session_s3(session_id)
 {
@@ -303,3 +352,5 @@ function debug_dump(reply)
   reply = `${reply}\n\n${buffer}`;
   return reply;
 }
+
+module.exports = api;
