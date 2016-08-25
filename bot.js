@@ -49,14 +49,8 @@ const api = /* async */ botBuilder(function (message, apiRequest) {
       resolve(done);
     });
   }).then(() => {
-    // the initial response
-    let reply = { response_type: 'in_channel', mrkdwn: false };
-    if (message.text === "") {
-      reply.text = "";
-    }
-    else {
-      reply.text = "> " + message.text;
-    }
+    // the initial response. Per slack documentation, this will echo the command the user typed
+    let reply = { response_type: 'in_channel' };
     return reply;
   }).catch(() => {
     console.log("Failed to invoke pass-through lambda");
@@ -180,7 +174,7 @@ api.intercept((event) => {
       }
       // finally, resolve with this response
       console.log("error response: " + reply_text);
-      return reply;
+      return slackDelayedReply(message, reply);
     });
   });
 });
