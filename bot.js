@@ -1,13 +1,27 @@
 "use strict";
 /*jshint esversion: 6 */
 
+/* 
+
+License information
+
+*/
+
+
+// ----
+// imports
+
 const botBuilder = require('claudia-bot-builder');
 const fs = require('fs');
 const execSync = require('child_process').execSync;
 const AWS = require('aws-sdk');
+const sessions = require('./sessions.js');
+
+// so we can recursively invoke our real handler
 const lambda = new AWS.Lambda();
 
-const S3_BUCKET_NAME = "frotzlamsessions";
+// ----
+// application constants
 
 //TODO: clean up this hackery of "preamble" and "postamble"
 // by making the line stripper smarter
@@ -15,6 +29,8 @@ const games = {
   zork1: { filename: 'ZORK1.DAT', preamble: 14, postamble: 2}
 };
 
+
+// API handler. Uses botBuilder to assemble the boilerplate functions
 
 const api = /* async */ botBuilder(function (message, apiRequest) {
 
@@ -64,7 +80,7 @@ api.intercept((event) => {
 
   return Promise.resolve(message.originalRequest.channel_id)
   .then( (session_id) => {
-    return load_saved_state(session_id)
+    return sessions.get_saved_state(session_id)
     .then( (saves) => {     // then execute the dfrotz command (sync)
       let cmd_line;
       let text = "to be determined...";  
@@ -120,7 +136,7 @@ api.intercept((event) => {
       }
 
       // then put the save file (async nested promise)
-      return put_saves(session_id)
+      return sessions.put_saved_state(session_id)
       .then ( (ignore) => {
         console.log("Put save logically complete");
         return `${text}`;
