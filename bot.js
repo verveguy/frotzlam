@@ -7,6 +7,12 @@ License information
 
 */
 
+/* NOTES
+
+The use of Promises in this code is heavily informed by the *very* 
+helpful article https://pouchdb.com/2015/05/18/we-have-a-problem-with-promises.html
+
+*/
 
 // ----
 // imports
