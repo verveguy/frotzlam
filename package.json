@@ -4,7 +4,7 @@
   "description": "Frotz on Lambda",
   "main": "index.js",
   "dependencies": {
-    "claudia-bot-builder": "^1.4.1",
+    "claudia-bot-builder": "^1.4.2",
     "aws-sdk": "^2.4.11"
   },
   "devDependencies": {
