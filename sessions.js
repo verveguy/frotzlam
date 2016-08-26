@@ -82,30 +82,35 @@ function get_session(session_id) /* async */
 
 function get_session_s3(session_id) /* async */ 
 {
-  return Promise.resolve(session_id)
-  .then( (session_id) => {
+  return get_fileobject_s3(S3_BUCKET_NAME, session_id, session_filename(session_id));
+}
+
+function get_fileobject_s3(bucket, key, filename) /* async */ 
+{
+  return Promise.resolve()
+  .then( () => {
     // check if the stupid object exists with headObject
     console.log("About to S3 headObject");
-    let s3 = new AWS.S3({params: {Bucket: S3_BUCKET_NAME, Key: session_id}});
-    return s3.headObject({Bucket: S3_BUCKET_NAME, Key: session_id }).promise()
-    .then( (dummy) => {
-      console.log("dummy: " + dummy);
+    let s3 = new AWS.S3();
+    return s3.headObject({Bucket: bucket, Key: key }).promise()
+    .then( () => {
       return new Promise((resolve, reject) => {
-        let session_file = session_filename(session_id);
-        let file = fs.createWriteStream(session_file);
-        file.on("finish", () => resolve(session_file));
-        file.on("error", err => {
-          console.log("S3 get failed with error:" + err);
-          reject(err);
+        let file = fs.createWriteStream(filename);
+        file.on("finish", () => resolve(filename));
+        file.on("error", error => {
+          console.log("S3 get failed with error");
+          console.error(error);
+          reject(error);
         });
         console.log("About to S3 getObject");
-        let s3 = new AWS.S3({params: {Bucket: S3_BUCKET_NAME, Key: session_id}});
-        var getReq = s3.getObject().createReadStream().pipe(file);
+        let s3 = new AWS.S3();
+        var getReq = s3.getObject({Bucket: bucket, Key: key}).createReadStream().pipe(file);
       });
     })
     .catch( (error) => {
-      console.log("S3 head failed with error:" + error);
-      throw new Error(error);
+      console.log("S3 head failed with error");
+      console.error(error);
+      throw error;
     });
   });
 }
@@ -138,7 +143,8 @@ function put_session_s3(session_id) /* async */
     return s3.putObject({Body: body}).promise();
   })
   .catch( (error) => {
-    console.log("S3 put failed with error:" + error);
+    console.log("S3 put failed with error");
+    console.error(error);
     throw new Error(error);
   });
 }
