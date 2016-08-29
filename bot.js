@@ -12,9 +12,9 @@ License information
 The use of Promises in this code is heavily informed by the *very* 
 helpful article https://pouchdb.com/2015/05/18/we-have-a-problem-with-promises.html
 
-Try this other Z-Machine
-https://github.com/curiousdannii/ifvms.js
+See also this http://taoofcode.net/promise-anti-patterns/
 
+And http://www.2ality.com/2014/10/es6-promises-api.html
 */
 
 // ----
@@ -58,6 +58,7 @@ const api = /* async */ botBuilder(function (message, apiRequest) {
       resolve(done);
     });
   }).then(() => {
+    console.log("Invoked pass-through lambda");
     // the initial response. Per slack documentation, this will echo the command the user typed
     let reply = { response_type: 'in_channel' };
     return reply;
@@ -70,123 +71,145 @@ const api = /* async */ botBuilder(function (message, apiRequest) {
 
 // interceptor to handle recursive call (the actual call we intend)
 
-const slackDelayedReply = botBuilder.slackDelayedReply;
-
-api.intercept((event) => {
+api.intercept( (event) => {
   if (!event.slackEvent) // if this is a normal web request, let it run
     return event;
+  
+  return perform_slack_command(event.slackEvent);
+});
 
-  const message = event.slackEvent;
 
+const slackDelayedReply = botBuilder.slackDelayedReply;
+
+function /* async */ perform_slack_command(message)
+{
+  let session_id = message.originalRequest.channel_id;
+  
+  // first, get the session state, if any
+  return sessions.get_saved_state(session_id)
+  .then( (session) => {     
+    
+    // then execute the actual command (sync)
+    let result = execute(session, message.text);
+    
+    // then put the save file (async nested promise)
+    return sessions.put_saved_state(session_id)
+    .then ( (ignore) => {
+      console.log("Put (save) session logically complete");
+      return result;
+    })
+    .catch( (error) => {
+      console.error("Put (save) session failed");
+      return result;
+    });
+  })
+  .then( (output) => {
+    let reply_text;
+    let reply = output;
+    if (message.type === 'slack-slash-command') {
+      const slackTemplate = botBuilder.slackTemplate;
+      const response = new slackTemplate(reply);
+      response.channelMessage(true).disableMarkdown(true);
+      reply = response.get();
+      reply_text = reply.text; 
+    }
+    else {
+      reply_text = reply; 
+    }
+    // finally, resolve with this response
+    console.log("response: ", reply_text);
+    return slackDelayedReply(message, reply);
+  })
+  .then ( () => {
+    console.log("DONE");
+    return false; // prevent normal execution
+  })
+  .catch( (error) => {
+    let reply_text;
+    let reply = "error: " + error;
+    if (message.type === 'slack-slash-command') {
+      const slackTemplate = botBuilder.slackTemplate;
+      let response = new slackTemplate(reply);
+      response.channelMessage(true).disableMarkdown(true);
+      reply = response.get(); 
+      reply_text = reply.text; 
+    }
+    else {
+      reply_text = reply; 
+    }
+    // finally, resolve with this response
+    console.error("error response: ", reply_text);
+    return slackDelayedReply(message, reply)
+      .then ( () => {
+        console.log("DONE");
+        return false; // prevent normal execution
+      });
+  });
+}
+
+
+
+function execute(session, command)
+{
+  let output = "To be determined...";
+  let cmd_line;
+  let isNewSession = !session.had_save;
+
+  if (command === "") {
+    if (isNewSession) {
+      console.log("New session. No command given. Executing dfrotz");
+    }
+    else {
+      console.log("Game in progress, but no command given. Assume 'look' intended");
+      command = "look\n";
+    }
+  }
+  else {
+    console.log("Command is: ", command);
+    command = command + "\n";
+  }
+
+  // build up a file with cmd content
+
+  if (isNewSession) {
+    cmd_line = `\\ch1\n\\w\n${command}save\n${saves.save_file}\n`;
+  }
+  else {
+    cmd_line = `restore\n${saves.save_file}\n\\ch1\n\\w\n${command}save\n${saves.save_file}\ny\n`;
+  }
+
+  const cmd_file = `/tmp/${session.session_id}.in`;
+  
     // TODO: get this from some kind of config
   const game = games['zork1'];
+  const gamefile = './games/' + game.filename;
 
-  return Promise.resolve(message.originalRequest.channel_id)
-  .then( (session_id) => {
-    return sessions.get_saved_state(session_id)
-    .then( (saves) => {     // then execute the dfrotz command (sync)
-      let cmd_line;
-      let text = "to be determined...";  
-      let isNewGame = saves.had_save;
-      
-      let command = message.text;
-      if (command === "") {
-        if (isNewGame) {
-          console.log("Game in progress, but no command given. Assume 'look' intended");
-          command = "look\n";
-        }
-        else {
-          console.log("No command given. Executing dfrotz");
-        }
-      }
-      else {
-        console.log("Command is: " + command);
-        command = command + "\n";
-      }
+  fs.writeFileSync(cmd_file, cmd_line);
+
+  try {
+    console.log("Attempting dfrotz execution with cmd " + cmd_line );
+    const buffer = execSync(`./dfrotz -i -Z 0 ${gamefile} < ${cmd_file}`);
+    output = `${buffer}`;
+    console.log("raw response: ", output);
+
+    if (isNewGame) {
+      text = strip_lines(text, 1, game.postamble);
+    }
+    else {
+      text = strip_lines(text, game.preamble, game.postamble);
+    }
+  }
+  catch (err) {
+    output = `${err.stdout}`;
+    console.error("dfrotz execution failed: ", output);
+    throw new Error(output);
+  }
+  finally {
+    fs.unlinkSync(cmd_file);
+  }
   
-      if (saves.had_save) {
-        cmd_line = `restore\n${saves.save_file}\n\\ch1\n\\w\n${command}save\n${saves.save_file}\ny\n`;
-      }
-      else {
-        cmd_line = `\\ch1\n\\w\n${command}save\n${saves.save_file}\n`;
-      }
-
-      const cmd_file = `/tmp/${session_id}.in`;
-      // build up a file with cmd content
-      fs.writeFileSync(cmd_file, cmd_line);
-
-      const gamefile = './games/' + game.filename;
-  
-      try {
-        console.log("Attempting dfrotz execution with cmd " + cmd_line );
-        const buffer = execSync(`./dfrotz -i -Z 0 ${gamefile} < ${cmd_file}`);
-        text = `${buffer}`;
-        console.log("raw response: " + text);
-    
-        //fs.unlinkSync(cmd_file);
-        if (saves.had_save) {
-          text = strip_lines(text, game.preamble, game.postamble);
-        }
-        else {
-          text = strip_lines(text, 1, game.postamble);
-        }
-      }
-      catch (err) {
-        text = `${err.stdout}`;
-        console.error("dfrotz execution failed: " + text);
-        console.dir(err);
-        throw new Error(text);
-      }
-
-      // then put the save file (async nested promise)
-      return sessions.put_saved_state(session_id)
-      .then ( (ignore) => {
-        console.log("Put save logically complete");
-        return `${text}`;
-      })
-      .catch( (error) => {
-        console.error("Put save failed");
-        throw new Error("error: failed to save game state");
-      });
-    })
-    .then ( (frotz) => {
-      let reply_text;
-      let reply = frotz;
-      if (message.type === 'slack-slash-command') {
-        const slackTemplate = botBuilder.slackTemplate;
-        const response = new slackTemplate(reply);
-        response.channelMessage(true).disableMarkdown(true);
-        reply = response.get();
-        reply_text = reply.text; 
-      }
-      else {
-        reply_text = reply; 
-      }
-      // finally, resolve with this response
-      console.log("response: " + reply_text);
-      return slackDelayedReply(message, reply);
-    })
-    .then(() => false) // prevent normal execution
-    .catch ( (error) => {
-      let reply_text;
-      //reply = debug_dump(text);
-      let reply = "error: " + error;
-      if (message.type === 'slack-slash-command') {
-        const slackTemplate = botBuilder.slackTemplate;
-        let response = new slackTemplate(reply);
-        response.channelMessage(true).disableMarkdown(true);
-        reply = response.get(); 
-        reply_text = reply.text; 
-      }
-      else {
-        reply_text = reply; 
-      }
-      // finally, resolve with this response
-      console.log("error response: " + reply_text);
-      return slackDelayedReply(message, reply);
-    });
-  });
-});
+  return output;
+}
 
 
 function filterCrud(line, index, array)
@@ -248,4 +271,5 @@ function debug_dump(reply)
   return reply;
 }
 
+// export our api functions
 module.exports = api;

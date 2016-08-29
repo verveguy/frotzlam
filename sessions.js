@@ -17,12 +17,12 @@ const AWS = require('aws-sdk');
 
 // ----
 // application constants
-const S3_BUCKET_NAME = "frotzlamsessions";
+const S3_BUCKET_NAME = "savedsessions";
 
 
-sessions.get_saved_state = function get_saved_state(session_id) {
-
-    console.log("Fetching saves for " + session_id);
+sessions.get_saved_state = function get_saved_state(session_id)
+{
+    console.log("Fetching saves for:", session_id);
 
     var saves = fetch_saves(session_id);
   
@@ -43,7 +43,7 @@ function fetch_saves(session_id) /* async */
   .then( (session_file) => {
     //return get_session(session_id)
     return get_session_s3(session_id)
-    .then( (value) => {
+    .then( (filename) => {
       // console.log("Checking local tmp file " + session_file);
       try {
         // const buffer = execSync('ls -al /tmp');
@@ -52,21 +52,21 @@ function fetch_saves(session_id) /* async */
       
         const stats = fs.statSync(session_file);
         let had_save = stats.isFile();
-        console.log("Found local tmp file. Continuing game");
-        return { had_save: had_save, save_file: session_file };
+        console.log("Found local tmp file. Continuing session");
+        return { had_save: had_save, save_file: session_file, session_id: session_id };
       }
       catch (err) {
         // console.error(err);
-        console.log("Local tmp file doesn't exist. Proceeding as new game");
+        console.log("Local tmp file doesn't exist. Proceeding as new session");
         // we continue, this isn't an error per se
-        return { had_save: false, save_file: session_file };
+        return { had_save: false, save_file: session_file, session_id: session_id };
       }
     })
-    .catch ( (error) => {
-      console.log("Failed to fetch state. Proceeding as new game");
+    .catch( (error) => {
+      console.log("Failed to fetch state. Proceeding as new session");
       // console.dir(error);
       // we continue, this isn't an error per se
-      return { had_save: false, save_file: session_file };
+      return { had_save: false, save_file: session_file, session_id: session_id };
     });
   });
 }
@@ -74,7 +74,7 @@ function fetch_saves(session_id) /* async */
 function get_session(session_id) /* async */ 
 {
   return Promise.resolve(session_id)
-  .then((session_id) => {
+  .then( (session_id) => {
     console.log("NOOP get state session id:" + session_id);
     return "dummy";
   });
@@ -97,9 +97,8 @@ function get_fileobject_s3(bucket, key, filename) /* async */
       return new Promise((resolve, reject) => {
         let file = fs.createWriteStream(filename);
         file.on("finish", () => resolve(filename));
-        file.on("error", error => {
-          console.log("S3 get failed with error");
-          console.error(error);
+        file.on("error", (error) => {
+          console.error("S3 get failed with error", error);
           reject(error);
         });
         console.log("About to S3 getObject");
@@ -108,8 +107,7 @@ function get_fileobject_s3(bucket, key, filename) /* async */
       });
     })
     .catch( (error) => {
-      console.log("S3 head failed with error");
-      console.error(error);
+      console.error("S3 head failed with error", error);
       throw error;
     });
   });
@@ -135,16 +133,30 @@ function put_session(session_id) /* async */
 
 function put_session_s3(session_id) /* async */
 {
-  return Promise.resolve(session_id)
-  .then( (session_id) => {
-    var save_file = session_filename(session_id);
-    var body = fs.createReadStream(save_file);
+  let filename = session_filename(session_id);
+  
+  return safeCreateReadStream(filename)
+  .then( (stream) => {
     var s3 = new AWS.S3({params: {Bucket: S3_BUCKET_NAME, Key: session_id }});
-    return s3.putObject({Body: body}).promise();
+    return s3.putObject({Body: stream}).promise();
   })
   .catch( (error) => {
-    console.log("S3 put failed with error");
-    console.error(error);
+    console.error("S3 put failed with error", error);
     throw new Error(error);
   });
+}
+
+
+function /* async */ safeCreateReadStream(filename) {
+
+  // See http://stackoverflow.com/questions/17136536/is-enoent-from-fs-createreadstream-uncatchable
+  return new Promise((resolve, reject) => {
+    let stream = fs.createReadStream(filename);
+    stream.on("readable", () => resolve(stream));
+    stream.on("error", (error) => {
+      console.error("createReadStream failed with error:", error);
+      reject(error);
+    });
+  });
+  
 }
