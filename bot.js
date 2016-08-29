@@ -192,7 +192,7 @@ function execute(session, command)
     output = `${buffer}`;
     console.log("raw response: ", output);
 
-    if (isNewGame) {
+    if (isNewSession) {
       text = strip_lines(text, 1, game.postamble);
     }
     else {
