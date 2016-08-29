@@ -172,10 +172,10 @@ function execute(session, command)
   // build up a file with cmd content
 
   if (isNewSession) {
-    cmd_line = `\\ch1\n\\w\n${command}save\n${saves.save_file}\n`;
+    cmd_line = `\\ch1\n\\w\n${command}save\n${session.save_file}\n`;
   }
   else {
-    cmd_line = `restore\n${saves.save_file}\n\\ch1\n\\w\n${command}save\n${saves.save_file}\ny\n`;
+    cmd_line = `restore\n${session.save_file}\n\\ch1\n\\w\n${command}save\n${session.save_file}\ny\n`;
   }
 
   const cmd_file = `/tmp/${session.session_id}.in`;
