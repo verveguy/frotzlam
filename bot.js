@@ -222,9 +222,11 @@ function filterCrud(line, index, array)
     return false;
   if (line.startsWith(">>Please enter a filename"))
     return false;
-  if (line === "Ok.")
+  if (line === ">")
     return false;
   if (line === ">>")
+    return false;
+  if (line === "Ok.")
     return false;
  
   return true;
@@ -255,10 +257,9 @@ function strip_lines(text, preamble, postamble)
 {
   // this is sloppy but we don't have much text
   var lines = text.split('\n');
-  lines = lines.filter(filterCrud);
 
   lines = lines.slice(preamble, lines.length - postamble);
-  
+  lines = lines.filter(filterCrud);
   lines = strip_carets(lines);
   
   // join the array back into a single string
