@@ -267,12 +267,5 @@ function strip_lines(text, preamble, postamble)
 }
 
 
-function debug_dump(reply)
-{
-  var buffer = execSync(`ls -al /tmp/`);
-  reply = `${reply}\n\n${buffer}`;
-  return reply;
-}
-
 // export our api functions
 module.exports = api;
