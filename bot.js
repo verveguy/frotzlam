@@ -187,17 +187,19 @@ function execute(session, command)
   fs.writeFileSync(cmd_file, cmd_line);
 
   try {
-    console.log("Attempting dfrotz execution with cmd " + cmd_line );
+    console.log("Attempting dfrotz execution with cmd_file: ", cmd_line );
+    console.log(`exec: ./dfrotz -i -Z 0 ${gamefile} < ${cmd_file}`);
     const buffer = execSync(`./dfrotz -i -Z 0 ${gamefile} < ${cmd_file}`);
     output = `${buffer}`;
     console.log("raw response: ", output);
 
     if (isNewSession) {
-      text = strip_lines(text, 1, game.postamble);
+      output = strip_lines(output, 1, game.postamble);
     }
     else {
-      text = strip_lines(text, game.preamble, game.postamble);
+      output = strip_lines(output, game.preamble, game.postamble);
     }
+    console.log("other side of strip");
   }
   catch (err) {
     output = `${err.stdout}`;
