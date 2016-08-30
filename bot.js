@@ -35,7 +35,7 @@ const lambda = new AWS.Lambda();
 //TODO: clean up this hackery of "preamble" and "postamble"
 // by making the line stripper smarter
 const games = {
-  zork1: { filename: 'ZORK1.DAT', preamble: 14, postamble: 2}
+  zork1: { filename: 'ZORK1.DAT', preamble: 11, postamble: 0}
 };
 
 
