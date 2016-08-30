@@ -17,7 +17,7 @@ const AWS = require('aws-sdk');
 
 // ----
 // application constants
-const S3_BUCKET_NAME = "savedsessions";
+const S3_BUCKET_NAME = "frotzlamsessions";
 
 
 sessions.get_saved_state = function get_saved_state(session_id)
