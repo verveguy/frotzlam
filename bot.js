@@ -94,11 +94,11 @@ function /* async */ perform_slack_command(message)
     
     // then put the save file (async nested promise)
     return sessions.put_saved_state(session_id)
-    .then ( (ignore) => {
+    .then ( () => {
       console.log("Put (save) session logically complete");
       return result;
     })
-    .catch( (error) => {
+    .catch( () => {
       console.error("Put (save) session failed");
       return result;
     });
