@@ -90,7 +90,6 @@ function get_fileobject_s3(bucket, key, filename) /* async */
   return Promise.resolve()
   .then( () => {
     // check if the stupid object exists with headObject
-    console.log("About to S3 headObject");
     let s3 = new AWS.S3();
     return s3.headObject({Bucket: bucket, Key: key }).promise()
     .then( () => {
@@ -101,7 +100,6 @@ function get_fileobject_s3(bucket, key, filename) /* async */
           console.error("S3 get failed with error", error);
           reject(error);
         });
-        console.log("About to S3 getObject");
         let s3 = new AWS.S3();
         var getReq = s3.getObject({Bucket: bucket, Key: key}).createReadStream().pipe(file);
       });
