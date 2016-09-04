@@ -7,6 +7,15 @@ License information
 
 */
 
+
+/* 
+
+TODO: load *two* objects per session - the save file and a session JSON object
+with other session params (like game to play ...)
+
+*/
+
+
 var sessions = module.exports = {};
 
 // ----
