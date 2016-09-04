@@ -33,10 +33,10 @@ sessions.get_saved_state = function get_saved_state(session_id)
 {
     console.log("Fetching saves for:", session_id);
 
-    var saves = fetch_saves(session_id);
+    var session = fetch_saves(session_id);
   
-    return saves;
-}
+    return session;
+};
 
 
 function session_filename(session_id)
