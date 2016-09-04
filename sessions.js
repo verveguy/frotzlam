@@ -123,28 +123,28 @@ function get_fileobject_s3(bucket, key, filename) /* async */
 
 // put the save file back into a lambda-safe cache
 
-sessions.put_saved_state = function put_saved_state(session_id) /* async */ 
+sessions.put_saved_state = function put_saved_state(session) /* async */ 
 {
-  return put_session_s3(session_id);
+  return put_session_s3(session);
   //return put_session(session_id);
-}
+};
 
-function put_session(session_id) /* async */
+function put_session(session) /* async */
 {
-  return Promise.resolve(session_id)
+  return Promise.resolve(session.session_id)
   .then((session_id) => {
     console.log("NOOP put state session id:" + session_id);
     return "dummy";
   });
 }
 
-function put_session_s3(session_id) /* async */
+function put_session_s3(session) /* async */
 {
-  let filename = session_filename(session_id);
+  let filename = session.save_file;
   
   return safeCreateReadStream(filename)
   .then( (stream) => {
-    var s3 = new AWS.S3({params: {Bucket: S3_BUCKET_NAME, Key: session_id }});
+    var s3 = new AWS.S3({params: {Bucket: S3_BUCKET_NAME, Key: session.session_id }});
     return s3.putObject({Body: stream}).promise();
   })
   .catch( (error) => {
