@@ -110,7 +110,7 @@ function get_fileobject_s3(bucket, key, filename) /* async */
           reject(error);
         });
         let s3 = new AWS.S3();
-        var getReq = s3.getObject({Bucket: bucket, Key: key}).createReadStream().pipe(file);
+        s3.getObject({Bucket: bucket, Key: key}).createReadStream().pipe(file);
       });
     })
     .catch( (error) => {
