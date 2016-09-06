@@ -37,9 +37,24 @@ const lambda = new AWS.Lambda();
 // a "last line" per game that we would then strip up to (and including)
 
 const games = {
-  zork1: { filename: 'ZORK1.DAT', preamble: 11, postamble: 0},
-  zork2: { filename: 'ZORK2.DAT', preamble: 13, postamble: 0},
-  zork3: { filename: 'ZORK3.DAT', preamble: 11, postamble: 0}
+  zork1: { 
+    filename: 'ZORK1.DAT', 
+    preamble: 11, 
+    postamble: 0, 
+    last_line: "There is a small mailbox here."
+  },
+  zork2: { 
+    filename: 'ZORK2.DAT', 
+    preamble: 13, 
+    postamble: 0, 
+    last_line: "A sword of Elvish workmanship is on the ground."
+  },
+  zork3: { 
+    filename: 'ZORK3.DAT', 
+    preamble: 22, 
+    postamble: 0, 
+    last_line: "Your old friend, the brass lantern, is at your feet."
+  }
 };
 
 
