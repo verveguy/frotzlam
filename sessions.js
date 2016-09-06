@@ -24,18 +24,31 @@ const fs = require('fs');
 const execSync = require('child_process').execSync;
 const AWS = require('aws-sdk');
 
+//const Q = require('q');
+const dynamodb = new AWS.DynamoDB.DocumentClient();
+
+//AWS.config.setPromisesDependency(Q.Promise);
+
+
 // ----
 // application constants
 const S3_BUCKET_NAME = "frotzlamsessions";
+const CTX_TBL_NAME = 'frotzlamsessions';
 
 
-sessions.get_saved_state = function get_saved_state(session_id)
+sessions.get_saved_state = /* async */ function get_saved_state(session_id)
 {
     console.log("Fetching saves for:", session_id);
 
-    var session = fetch_saves(session_id);
-  
-    return session;
+    return restore_context(session_id)
+      .then( (session) => {
+        console.log('CONTEXT:', JSON.stringify(session));
+        if (!session) {
+          console.log("dynamo session undefined");
+          session = { session_id: session_id, counter: 0 };
+        }
+        return fetch_saves(session);
+      });
 };
 
 
@@ -46,46 +59,39 @@ function session_filename(session_id)
 
 // figure out if we have a save file already
 
-function fetch_saves(session_id) /* async */ 
+function fetch_saves(session) /* async */ 
 {
-  return  Promise.resolve(session_filename(session_id))
-  .then( (session_file) => {
-    //return get_session(session_id)
-    return get_session_s3(session_id)
-    .then( (filename) => {
-      // console.log("Checking local tmp file " + session_file);
-      try {
-        // const buffer = execSync('ls -al /tmp');
-        // const text = `${buffer}`;
-        // console.log("tmp dir: " + text);
+   return get_session_s3(session.session_id)
+   .then( (filename) => {
+    try {
+    
+      const stats = fs.statSync(filename);
+      let had_save = stats.isFile();
+      console.log("Found local tmp file. Continuing session");
+      session.had_save = had_save;
+      session.save_file = filename;
       
-        const stats = fs.statSync(session_file);
-        let had_save = stats.isFile();
-        console.log("Found local tmp file. Continuing session");
-        return { had_save: had_save, save_file: session_file, session_id: session_id };
-      }
-      catch (err) {
-        // console.error(err);
-        console.log("Local tmp file doesn't exist. Proceeding as new session");
-        // we continue, this isn't an error per se
-        return { had_save: false, save_file: session_file, session_id: session_id };
-      }
-    })
-    .catch( (error) => {
-      console.log("Failed to fetch state. Proceeding as new session");
-      // console.dir(error);
+      return session;
+    }
+    catch (err) {
+      // console.error(err);
+      console.log("Local tmp file doesn't exist. Proceeding as new session");
       // we continue, this isn't an error per se
-      return { had_save: false, save_file: session_file, session_id: session_id };
-    });
-  });
-}
-
-function get_session(session_id) /* async */ 
-{
-  return Promise.resolve(session_id)
-  .then( (session_id) => {
-    console.log("NOOP get state session id:" + session_id);
-    return "dummy";
+      session.had_save = false;
+      session.save_file = filename;
+      
+      return session;
+    }
+  })
+  .catch( (error) => {
+    console.log("Failed to fetch state. Proceeding as new session");
+    // console.dir(error);
+    // we continue, this isn't an error per se
+    session.had_save = false;
+    // still need to set this for saving the initial game state
+    session.save_file = session_filename(session_id);  
+    
+    return session;
   });
 }
 
@@ -125,18 +131,10 @@ function get_fileobject_s3(bucket, key, filename) /* async */
 
 sessions.put_saved_state = function put_saved_state(session) /* async */ 
 {
-  return put_session_s3(session);
-  //return put_session(session_id);
+  return put_session_s3(session).then( () => { 
+      return persist_context(session); 
+    });
 };
-
-function put_session(session) /* async */
-{
-  return Promise.resolve(session.session_id)
-  .then((session_id) => {
-    console.log("NOOP put state session id:" + session_id);
-    return "dummy";
-  });
-}
 
 function put_session_s3(session) /* async */
 {
@@ -167,3 +165,41 @@ function /* async */ safeCreateReadStream(filename) {
   });
   
 }
+
+/*
+  Context functions, built on dynamoDB
+*/
+
+// restore session context from dynamodb
+function restore_context(session_id)
+{
+  console.log("Trying to restore context for session", session_id);
+
+  var params = {
+    TableName: CTX_TBL_NAME,
+    Key: {
+      'session_id': session_id
+    }
+  };
+
+  return dynamodb.get(params).promise()
+  .then( (data) => {
+    return data.Item;
+  });
+}
+
+// persist context to dynamodb
+function persist_context(session)
+{
+  console.log("Persisting context for session", session.session_id);
+
+  session.counter += 1;
+  
+  var params = {
+      TableName: CTX_TBL_NAME,
+      Item: session
+  };
+
+  return dynamodb.put(params).promise();
+}
+
