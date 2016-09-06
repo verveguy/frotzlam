@@ -1,5 +1,7 @@
 "use strict";
 /*jshint esversion: 6 */
+/*jslint node: true */
+/* jshint node: true */
 
 /* 
 
