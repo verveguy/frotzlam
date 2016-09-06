@@ -85,11 +85,12 @@ const slackDelayedReply = botBuilder.slackDelayedReply;
 
 function /* async */ perform_slack_command(message)
 {
+  // we use slack channel ID as session ID "one game per channel"
   let session_id = message.originalRequest.channel_id;
   let command = message.originalRequest.command;
   let text = message.text;
   
-  // first, get the session state, if any
+  // first, get the saved session state, if any
   return sessions.get_saved_state(session_id)
   .then( (session) => {     
     
@@ -97,7 +98,7 @@ function /* async */ perform_slack_command(message)
     let result = execute(session, command, text);
     
     // then put the save file (async nested promise)
-    return sessions.put_saved_state(session_id)
+    return sessions.put_saved_state(session)
     .then ( () => {
       console.log("Put (save) session logically complete");
       return result;
