@@ -254,8 +254,11 @@ function execute(session, command, instruction)
 
       try {
         console.log("Attempting dfrotz execution with cmd_file: ", cmd_line );
-        console.log(`exec: ./dfrotz -i -Z 0 ${gamefile} < ${cmd_file}`);
-        const buffer = execSync(`./dfrotz -i -Z 0 ${gamefile} < ${cmd_file}`);
+        
+		let dfrotz = `./dfrotz -S 0 -m -w 255 -i -Z 0 ${gamefile} < ${cmd_file}`;
+		
+		console.log('exec:', dfrotz);
+        const buffer = execSync(dfrotz);
         output = `${buffer}`;
         console.log("raw response: ", output);
 
