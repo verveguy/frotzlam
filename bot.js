@@ -86,13 +86,15 @@ const slackDelayedReply = botBuilder.slackDelayedReply;
 function /* async */ perform_slack_command(message)
 {
   let session_id = message.originalRequest.channel_id;
+  let command = message.originalRequest.command;
+  let text = message.text;
   
   // first, get the session state, if any
   return sessions.get_saved_state(session_id)
   .then( (session) => {     
     
     // then execute the actual command (sync)
-    let result = execute(session, message.text);
+    let result = execute(session, command, text);
     
     // then put the save file (async nested promise)
     return sessions.put_saved_state(session_id)
@@ -150,68 +152,107 @@ function /* async */ perform_slack_command(message)
 }
 
 
+/* main dfrotz invocation wrapper
 
-function execute(session, command)
+session object - {save_file:, session_id:, had_save:, params: {} }
+command - the slack slash command used
+instruction - the text of the slash command (passed to dfrotz)
+
+*/
+
+
+function execute(session, command, instruction)
 {
   let output = "To be determined...";
   let cmd_line;
   let isNewSession = !session.had_save;
-
-  if (command === "") {
-    if (isNewSession) {
-      console.log("New session. No command given. Executing dfrotz");
-    }
-    else {
-      console.log("Game in progress, but no command given. Assume 'look' intended");
-      command = "look\n";
-    }
-  }
-  else {
-    console.log("Command is: ", command);
-    command = command + "\n";
-  }
-
-  // build up a file with cmd content
-
-  if (isNewSession) {
-    cmd_line = `\\ch1\n\\w\n${command}save\n${session.save_file}\n`;
-  }
-  else {
-    cmd_line = `restore\n${session.save_file}\n\\ch1\n\\w\n${command}save\n${session.save_file}\ny\n`;
-  }
-
-  const cmd_file = `/tmp/${session.session_id}.in`;
   
-    // TODO: get this from some kind of config
-  const game = games['zork1'];
-  const gamefile = './games/' + game.filename;
+  switch (command) {
+    
+    case '/frotz-game':
+      console.log("Load game file", instruction);
+      session.game = instruction;
+      instruction = ""; // for fall-through below
+      // fall through to reset game ...
 
-  fs.writeFileSync(cmd_file, cmd_line);
+    /* reset the game in progress */
+    case '/frotz-reset':
+      if (isNewSession) {
+        console.log("Attempting reset on new session. Same as giving an instruction. Ignored");
+      }
+      else {
+        /* reset */
+        console.log("Reset session");
+        session.had_save = false;
+        isNewSession = true;
+      }
+      /* fall through to main case */
+      
+    /* main case, just execute the instruction as an in-game instruction */
+    case "/frotz":
+    case "/f":
+      if (instruction === "") {
+        if (isNewSession) {
+          console.log("New session. No instruction given. Executing dfrotz");
+        }
+        else {
+          console.log("Game in progress, but no instruction given. Assume 'look' intended");
+          instruction = "look\n";
+        }
+      }
+      else {
+        console.log("Command is: ", instruction);
+        instruction = instruction + "\n";
+      }
 
-  try {
-    console.log("Attempting dfrotz execution with cmd_file: ", cmd_line );
-    console.log(`exec: ./dfrotz -i -Z 0 ${gamefile} < ${cmd_file}`);
-    const buffer = execSync(`./dfrotz -i -Z 0 ${gamefile} < ${cmd_file}`);
-    output = `${buffer}`;
-    console.log("raw response: ", output);
+      // build up a file with cmd content
+      cmd_line = `\\ch1\n\\w\n${instruction}save\n${session.save_file}\ny\n`;
 
-    if (isNewSession) {
-      output = strip_lines(output, 1, game.postamble);
-    }
-    else {
-      output = strip_lines(output, game.preamble, game.postamble);
-    }
-    console.log("other side of strip");
-  }
-  catch (err) {
-    output = `${err.stdout}`;
-    console.error("dfrotz execution failed: ", output);
-    throw new Error(output);
-  }
-  finally {
-    fs.unlinkSync(cmd_file);
-  }
+      if (!isNewSession) {
+        cmd_line = `restore\n${session.save_file}\n` + cmd_line;
+      }
+
+      const cmd_file = `/tmp/${session.session_id}.in`;
   
+      // default to zork1 if not specified. Picks up old game sessions
+      // plus defaults new (unspecified) ones
+      if (!session.hasOwnProperty('game')) {
+        console.log("Session.game missing. Setting to zork1" );
+        session.game = 'zork1';
+      }
+      
+      const game = games[session.game];
+      const gamefile = './games/' + game.filename;
+
+      fs.writeFileSync(cmd_file, cmd_line);
+
+      try {
+        console.log("Attempting dfrotz execution with cmd_file: ", cmd_line );
+        console.log(`exec: ./dfrotz -i -Z 0 ${gamefile} < ${cmd_file}`);
+        const buffer = execSync(`./dfrotz -i -Z 0 ${gamefile} < ${cmd_file}`);
+        output = `${buffer}`;
+        console.log("raw response: ", output);
+
+        if (isNewSession) {
+          output = strip_lines(output, 1, game.postamble);
+        }
+        else {
+          output = strip_lines(output, game.preamble, game.postamble);
+        }
+        console.log("other side of strip");
+      }
+      catch (err) {
+        output = `${err.stdout}`;
+        console.error("dfrotz execution failed: ", output);
+        throw new Error(output);
+      }
+      finally {
+        fs.unlinkSync(cmd_file);
+      }
+      break;
+    
+  }
+      
   return output;
 }
 
