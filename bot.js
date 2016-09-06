@@ -43,28 +43,24 @@ const lambda = new AWS.Lambda();
 // ----
 // application constants
 
-//TODO: clean up this hackery of "preamble" and "postamble"
-// by making the line stripper smarter. Consider introducing
-// a "last line" per game that we would then strip up to (and including)
+// TODO: note that for games where auto-detect fails, 
+// we need a last_line sentinel and set preamble = -2
 
 const games = {
   zork1: { 
     filename: 'ZORK1.DAT', 
-    preamble: 11, 
-    postamble: 0, 
-    last_line: "There is a small mailbox here."
+    preamble: -1, // means we auto-detect preamble
+    postamble: 0
   },
   zork2: { 
     filename: 'ZORK2.DAT', 
-    preamble: 13, 
-    postamble: 0, 
-    last_line: "A sword of Elvish workmanship is on the ground."
+    preamble: -1, // means we auto-detect preamble
+    postamble: 0 
   },
   zork3: { 
     filename: 'ZORK3.DAT', 
-    preamble: 22, 
-    postamble: 0, 
-    last_line: "Your old friend, the brass lantern, is at your feet."
+    preamble: -1, // means we auto-detect preamble
+    postamble: 0 
   }
 };
 
@@ -206,6 +202,7 @@ function execute(session, command, instruction)
 
     /* reset the game in progress */
     case '/frotz-reset':
+      // TODO: invert this and use session.had_save for clarity
       if (isNewSession) {
         console.log("Attempting reset on new session. Same as giving an instruction. Ignored");
       }
@@ -235,7 +232,7 @@ function execute(session, command, instruction)
       }
 
       // build up a file with cmd content
-      cmd_line = `\\ch1\n\\w\n${instruction}save\n${session.save_file}\ny\n`;
+      cmd_line = `---BOGUS SENTINEL LINE---\n\\ch1\n\\w\n${instruction}save\n${session.save_file}\ny\n`;
 
       if (!isNewSession) {
         cmd_line = `restore\n${session.save_file}\n` + cmd_line;
@@ -285,20 +282,23 @@ function execute(session, command, instruction)
   return output;
 }
 
+const sentinel_line = '>I don\'t know the word "---bogus".';
 
 function filterCrud(line, index, array)
 {
+  if (line === sentinel_line)
+    return false;
   if (line === ">Compression mode SPANS, hiding top 1 lines")
-    return false;
-  if (line.startsWith(">Please enter a filename"))
-    return false;
-  if (line.startsWith(">>Please enter a filename"))
     return false;
   if (line === ">")
     return false;
   if (line === ">>")
     return false;
   if (line === "Ok.")
+    return false;
+  if (line.startsWith(">Please enter a filename"))
+    return false;
+  if (line.startsWith(">>Please enter a filename"))
     return false;
  
   return true;
@@ -328,8 +328,18 @@ function strip_carets(arr)
 function strip_lines(text, preamble, postamble)
 {
   // this is sloppy but we don't have much text
-  var lines = text.split('\n');
+  let lines = text.split('\n');
 
+  if (preamble == -1) {
+    // look for sentinel line
+    const len = lines.length;
+    let junk = 0;
+    for (junk = 0; junk < len; junk++)
+      if (lines[junk] === sentinel_line)
+        break;
+    preamble = junk;
+  }
+  
   lines = lines.slice(preamble, lines.length - postamble);
   lines = lines.filter(filterCrud);
   lines = strip_carets(lines);
