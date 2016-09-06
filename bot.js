@@ -15,6 +15,15 @@ helpful article https://pouchdb.com/2015/05/18/we-have-a-problem-with-promises.h
 See also this http://taoofcode.net/promise-anti-patterns/
 
 And http://www.2ality.com/2014/10/es6-promises-api.html
+
+TODO:
+
+Consider adding "confirm?" buttons to the /frotz-reset and /frotz-game commands
+Consider adding a "non-game" state before a game is loaded. Interactive bot style
+Consider allowing upload of your own games files. Via slack attachment?
+  Would require some kind of "last_line" info as well as the binary
+  Could we automatically compute "last_line" by observing output? Probably...
+  
 */
 
 // ----
