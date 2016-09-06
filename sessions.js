@@ -1,17 +1,20 @@
 "use strict";
 /*jshint esversion: 6 */
+/*jslint node: true */
+/* jshint node: true */
 
 /* 
 
 License information
 
+<MIT> ?
 */
 
 
 /* 
 
-TODO: load *two* objects per session - the save file and a session JSON object
-with other session params (like game to play ...)
+TODO: consider adding more information to the session context data held
+in dynamodb. Perhaps the slack team name, etc.
 
 */
 
@@ -24,11 +27,7 @@ const fs = require('fs');
 const execSync = require('child_process').execSync;
 const AWS = require('aws-sdk');
 
-//const Q = require('q');
 const dynamodb = new AWS.DynamoDB.DocumentClient();
-
-//AWS.config.setPromisesDependency(Q.Promise);
-
 
 // ----
 // application constants
