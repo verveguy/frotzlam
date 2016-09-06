@@ -33,10 +33,12 @@ const lambda = new AWS.Lambda();
 // application constants
 
 //TODO: clean up this hackery of "preamble" and "postamble"
-// by making the line stripper smarter
+// by making the line stripper smarter. Consider introducing
+// a "last line" per game that we would then strip up to (and including)
+
 const games = {
   zork1: { filename: 'ZORK1.DAT', preamble: 11, postamble: 0},
-  zork2: { filename: 'ZORK2.DAT', preamble: 11, postamble: 0},
+  zork2: { filename: 'ZORK2.DAT', preamble: 13, postamble: 0},
   zork3: { filename: 'ZORK3.DAT', preamble: 11, postamble: 0}
 };
 
