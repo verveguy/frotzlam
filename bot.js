@@ -153,8 +153,5 @@ function /* async */ perform_slack_command(message)
   });
 }
 
-
-
-
 // export our api functions
 module.exports = api;
