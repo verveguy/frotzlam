@@ -9,6 +9,5 @@
 # make the npm package
 npm update
 
-
 # deploy package
 npm run deploy
