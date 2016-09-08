@@ -85,29 +85,27 @@ commands.execute = function execute(session, command, instruction)
 
     /* reset the game in progress */
     case '/frotz-reset':
-      // TODO: invert this and use session.had_save for clarity
-      if (isNewSession) {
-        console.log("Attempting reset on new session. Same as giving an instruction. Ignored");
-      }
-      else {
-        /* reset */
-        console.log("Reset session");
-        session.had_save = false;
-        isNewSession = true;
-      }
+      /* reset */
+      console.log("Reset session");
+      isNewSession = true;
+      instruction = "";
       /* fall through to main case */
       
     /* main case, just execute the instruction as an in-game instruction */
     case "/frotz":
     case "/f":
-      if (instruction === "") {
-        if (isNewSession) {
-          console.log("New session. No instruction given. Executing dfrotz");
+      if (isNewSession) {
+        // should we ignore any immediate command given?
+        if (instruction === "look") {
+          // this would make a "double look" which is clumsy since a new session
+          // always prints out the current room description anyhow
+          instruction = "";
         }
-        else {
-          console.log("Game in progress, but no instruction given. Assume 'look' intended");
-          instruction = "look\n";
-        }
+        // else allow other instructions to come through even on first session (jumping the gun)
+      }
+      else if (instruction === "") {
+        console.log("Game in progress, but no instruction given. Assume 'look' intended");
+        instruction = "look\n";
       }
       else {
         console.log("Command is: ", instruction);
