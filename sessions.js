@@ -41,11 +41,11 @@ sessions.get_saved_state = /* async */ function get_saved_state(session_id)
 
     return restore_context(session_id)
       .then( (session) => {
-        console.log('CONTEXT:', JSON.stringify(session));
         if (!session) {
           console.log("dynamo session undefined");
           session = { session_id: session_id, counter: 0 };
         }
+        console.log('CONTEXT:', JSON.stringify(session));
         return fetch_saves(session);
       });
 };
@@ -88,7 +88,7 @@ function fetch_saves(session) /* async */
     // we continue, this isn't an error per se
     session.had_save = false;
     // still need to set this for saving the initial game state
-    session.save_file = session_filename(session_id);  
+    session.save_file = session_filename(session.session_id);  
     
     return session;
   });
