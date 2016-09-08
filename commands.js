@@ -113,9 +113,15 @@ commands.execute = function execute(session, command, instruction)
       }
 
       // build up a file with cmd content
-      cmd_line = `---BOGUS SENTINEL LINE---\n\\ch1\n\\w\n${instruction}save\n${session.save_file}\ny\n`;
+      cmd_line = `---BOGUS SENTINEL LINE---\n\\ch1\n\\w\n${instruction}save\n${session.save_file}\n`;
 
+      if (session.had_save) {
+        // make sure we overwrite old save file
+        cmd_line  = cmd_line + 'y\n';
+      }
+      
       if (!isNewSession) {
+        // restore the old game state if needed
         cmd_line = `restore\n${session.save_file}\n` + cmd_line;
       }
 
