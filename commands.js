@@ -129,36 +129,45 @@ commands.execute = function execute(session, command, instruction)
       }
       
       const game = games[session.game];
-      const gamefile = './games/' + game.filename;
+      if (game) {
+        const gamefile = './games/' + game.filename;
+      
+        fs.writeFileSync(cmd_file, cmd_line);
 
-      fs.writeFileSync(cmd_file, cmd_line);
-
-      try {
-        console.log("Attempting dfrotz execution with cmd_file: ", cmd_line );
+        try {
+          console.log("Attempting dfrotz execution with cmd_file: ", cmd_line );
         
-		let dfrotz = `./dfrotz -S 0 -m -w 255 -i -Z 0 ${gamefile} < ${cmd_file}`;
-		
-		console.log('exec:', dfrotz);
-        const buffer = execSync(dfrotz);
-        output = `${buffer}`;
-        console.log("raw response: ", output);
+          let dfrotz = `./dfrotz -S 0 -m -w 255 -i -Z 0 ${gamefile} < ${cmd_file}`;
+        
+          console.log('exec:', dfrotz);
+          const buffer = execSync(dfrotz);
+          output = `${buffer}`;
+          console.log("raw response: ", output);
 
-        if (isNewSession) {
-          output = strip_lines(output, 1, game.postamble);
+          if (isNewSession) {
+            output = strip_lines(output, 1, game.postamble);
+          }
+          else {
+            output = strip_lines(output, game.preamble, game.postamble);
+          }
+          console.log("other side of strip");
         }
-        else {
-          output = strip_lines(output, game.preamble, game.postamble);
+        catch (err) {
+          output = `${err.stdout}`;
+          console.error("dfrotz execution failed: ", output);
+          throw new Error(output);
         }
-        console.log("other side of strip");
+        finally {
+          fs.unlinkSync(cmd_file);
+        }
       }
-      catch (err) {
-        output = `${err.stdout}`;
-        console.error("dfrotz execution failed: ", output);
-        throw new Error(output);
+      else {
+        // unknown game
+        console.log("Unknown game:", session.game);
+        // TODO: make this iterate the known games collection
+        output = `Sorry, I don't know how to play the game ${session.game} (yet).\nPlease try one of the games I know:\nzork1, zork2, zork3`;
       }
-      finally {
-        fs.unlinkSync(cmd_file);
-      }
+      
       break;
     
   }
