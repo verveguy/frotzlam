@@ -93,29 +93,27 @@ commands.execute = function execute(session, command, instruction)
 
     /* reset the game in progress */
     case '/frotz-reset':
-      // TODO: invert this and use session.had_save for clarity
-      if (isNewSession) {
-        console.log("Attempting reset on new session. Same as giving an instruction. Ignored");
-      }
-      else {
-        /* reset */
-        console.log("Reset session");
-        session.had_save = false;
-        isNewSession = true;
-      }
+      /* reset */
+      console.log("Reset session");
+      isNewSession = true;
+      instruction = "";
       /* fall through to main case */
       
     /* main case, just execute the instruction as an in-game instruction */
     case "/frotz":
     case "/f":
-      if (instruction === "") {
-        if (isNewSession) {
-          console.log("New session. No instruction given. Executing dfrotz");
+      if (isNewSession) {
+        // should we ignore any immediate command given?
+        if (instruction === "look") {
+          // this would make a "double look" which is clumsy since a new session
+          // always prints out the current room description anyhow
+          instruction = "";
         }
-        else {
-          console.log("Game in progress, but no instruction given. Assume 'look' intended");
-          instruction = "look\n";
-        }
+        // else allow other instructions to come through even on first session (jumping the gun)
+      }
+      else if (instruction === "") {
+        console.log("Game in progress, but no instruction given. Assume 'look' intended");
+        instruction = "look\n";
       }
       else {
         console.log("Command is: ", instruction);
@@ -123,9 +121,15 @@ commands.execute = function execute(session, command, instruction)
       }
 
       // build up a file with cmd content
-      cmd_line = `---BOGUS SENTINEL LINE---\n\\ch1\n\\w\n${instruction}save\n${session.save_file}\ny\n`;
+      cmd_line = `---BOGUS SENTINEL LINE---\n\\ch1\n\\w\n${instruction}save\n${session.save_file}\n`;
 
+      if (session.had_save) {
+        // make sure we overwrite old save file
+        cmd_line  = cmd_line + 'y\n';
+      }
+      
       if (!isNewSession) {
+        // restore the old game state if needed
         cmd_line = `restore\n${session.save_file}\n` + cmd_line;
       }
 
@@ -139,36 +143,45 @@ commands.execute = function execute(session, command, instruction)
       }
       
       const game = games[session.game];
-      const gamefile = './games/' + game.filename;
+      if (game) {
+        const gamefile = './games/' + game.filename;
+      
+        fs.writeFileSync(cmd_file, cmd_line);
 
-      fs.writeFileSync(cmd_file, cmd_line);
-
-      try {
-        console.log("Attempting dfrotz execution with cmd_file: ", cmd_line );
+        try {
+          console.log("Attempting dfrotz execution with cmd_file: ", cmd_line );
         
-		let dfrotz = `./dfrotz -S 0 -m -w 255 -i -Z 0 ${gamefile} < ${cmd_file}`;
-		
-		console.log('exec:', dfrotz);
-        const buffer = execSync(dfrotz);
-        output = `${buffer}`;
-        console.log("raw response: ", output);
+          let dfrotz = `./dfrotz -S 0 -m -w 255 -i -Z 0 ${gamefile} < ${cmd_file}`;
+        
+          console.log('exec:', dfrotz);
+          const buffer = execSync(dfrotz);
+          output = `${buffer}`;
+          console.log("raw response: ", output);
 
-        if (isNewSession) {
-          output = strip_lines(output, 1, game.postamble);
+          if (isNewSession) {
+            output = strip_lines(output, 1, game.postamble);
+          }
+          else {
+            output = strip_lines(output, game.preamble, game.postamble);
+          }
+          console.log("other side of strip");
         }
-        else {
-          output = strip_lines(output, game.preamble, game.postamble);
+        catch (err) {
+          output = `${err.stdout}`;
+          console.error("dfrotz execution failed: ", output);
+          throw new Error(output);
         }
-        console.log("other side of strip");
+        finally {
+          fs.unlinkSync(cmd_file);
+        }
       }
-      catch (err) {
-        output = `${err.stdout}`;
-        console.error("dfrotz execution failed: ", output);
-        throw new Error(output);
+      else {
+        // unknown game
+        console.log("Unknown game:", session.game);
+        // TODO: make this iterate the known games collection
+        output = `Sorry, I don't know how to play the game ${session.game} (yet).\nPlease try one of the games I know:\nzork1, zork2, zork3`;
       }
-      finally {
-        fs.unlinkSync(cmd_file);
-      }
+      
       break;
     
   }
