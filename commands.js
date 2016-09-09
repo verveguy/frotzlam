@@ -179,7 +179,7 @@ commands.execute = function execute(session, command, instruction)
         // unknown game
         console.log("Unknown game:", session.game);
         // TODO: make this iterate the known games collection
-        output = `Sorry, I don't know how to play the game ${session.game} (yet).\nPlease try one of the games I know:\nzork1, zork2, zork3`;
+        output = `Sorry, I don't know how to play the game ${session.game} (yet).\nPlease try one of the games I know:\nzork1, zork2, zork3, svt`;
       }
       
       break;
