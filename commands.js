@@ -57,7 +57,15 @@ const games = {
     filename: 'ZORK3.DAT', 
     preamble: -1, // means we auto-detect preamble
     postamble: 0 
+  },
+  svt: { 
+    name: "Superluminal Vagrant Twin",
+    site_url: "https://pacian.itch.io/superluminal-vagrant-twin",
+	filename: 'Superluminal Vagrant Twin.gblorb', 
+    preamble: -1, // means we auto-detect preamble
+    postamble: 0 
   }
+  
 };
 
 /* main dfrotz invocation wrapper
