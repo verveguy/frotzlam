@@ -40,6 +40,10 @@ const games = require("./games.js")
 // application constants
 
 
+// we rely on this output from \ch1 cmd to tell us where text stops
+const sentinel_line = 'Compression mode SPANS, hiding top 1 lines';
+
+
 /* main dfrotz invocation wrapper
 
 session object - {save_file:, session_id:, had_save:, params: {} }
