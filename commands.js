@@ -211,32 +211,43 @@ function offer_other_games(bad_game)
 
 function filterCrud(line, index, array)
 {
-  if (line === sentinel_line)
-    return false;
-  if (line === ">Compression mode SPANS, hiding top 1 lines")
-    return false;
   if (line === ">")
     return false;
   if (line === ">>")
     return false;
+  if (line === "> >")
+    return false;
+  if (line === ") ")
+    return false;
   if (line === "Ok.")
     return false;
-  if (line.startsWith(">Please enter a filename"))
+  if (line.includes("Score: 0"))
     return false;
-  if (line.startsWith(">>Please enter a filename"))
+  if (line.includes("Press enter to continue"))
     return false;
- 
+  if (line.includes(sentinel_line))
+    return false;
+  if (line.includes("Please enter a filename"))
+    return false;
+
   return true;
 }
 
 function strip_carets_line(arr, index)
 {
+  let line = arr[index];
+
   // trim the '>>' off the first line if present
-  var line = arr[index];
-  var res = line.slice(0,2);
-  if (res == '>>') {
-    arr[index] = line.slice(2);
+  while (true) {
+    let res = line.slice(0,1);
+    if (res === '>' || res === ')' || res === '.') {
+      line = line.slice(1).trim();
+      continue;
+    }
+    break;
   }
+  
+  arr[index] = line.trim();
   return arr;
 }
 
