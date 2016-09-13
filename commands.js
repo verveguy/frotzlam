@@ -35,38 +35,10 @@ var commands = module.exports = {};
 
 const fs = require('fs');
 const execSync = require('child_process').execSync;
-
+const games = require("./games.js")
 // ----
 // application constants
 
-// TODO: note that for games where auto-detect fails, 
-// we need a last_line sentinel and set preamble = -2
-
-const games = {
-  zork1: { 
-    filename: 'ZORK1.DAT', 
-    preamble: -1, // means we auto-detect preamble
-    postamble: 0
-  },
-  zork2: { 
-    filename: 'ZORK2.DAT', 
-    preamble: -1, // means we auto-detect preamble
-    postamble: 0 
-  },
-  zork3: { 
-    filename: 'ZORK3.DAT', 
-    preamble: -1, // means we auto-detect preamble
-    postamble: 0 
-  },
-  svt: { 
-    name: "Superluminal Vagrant Twin",
-    site_url: "https://pacian.itch.io/superluminal-vagrant-twin",
-	filename: 'Superluminal Vagrant Twin.gblorb', 
-    preamble: -1, // means we auto-detect preamble
-    postamble: 0 
-  }
-  
-};
 
 /* main dfrotz invocation wrapper
 
@@ -87,6 +59,17 @@ commands.execute = function execute(session, command, instruction)
     
     case '/frotz-game':
       console.log("Load game file", instruction);
+
+      //check game file first
+      if (!games[instruction]) {
+        // unknown game
+        console.log("Unknown game:", instruction);
+        output = offer_other_games(instruction);
+        break;
+      }
+      
+      // game is good, fall through...
+      // TODO: use slack buttons to confirm intent to load (and reset) game state
       session.game = instruction;
       instruction = ""; // for fall-through below
       // fall through to reset game ...
@@ -102,6 +85,20 @@ commands.execute = function execute(session, command, instruction)
     /* main case, just execute the instruction as an in-game instruction */
     case "/frotz":
     case "/f":
+      if (!session.hasOwnProperty('game')) {
+        if (isNewSession) {
+          console.log("New session, unknown game." );
+          output = offer_games();
+          break;
+        }
+        else {
+          // default to zork1 if not specified. Picks up old game sessions
+          // plus defaults new (unspecified) ones
+          console.log("Session.game missing. Assuming zork1" );
+          session.game = 'zork1';
+        }
+      }
+      
       if (isNewSession) {
         // should we ignore any immediate command given?
         if (instruction === "look") {
@@ -143,6 +140,7 @@ commands.execute = function execute(session, command, instruction)
       }
       
       const game = games[session.game];
+      // we double-check this, since old sessions could have games that no longer exist
       if (game) {
         const gamefile = './games/' + game.filename;
       
@@ -178,8 +176,7 @@ commands.execute = function execute(session, command, instruction)
       else {
         // unknown game
         console.log("Unknown game:", session.game);
-        // TODO: make this iterate the known games collection
-        output = `Sorry, I don't know how to play the game ${session.game} (yet).\nPlease try one of the games I know:\nzork1, zork2, zork3, svt`;
+        output = offer_other_games(sessions.game);
       }
       
       break;
@@ -190,8 +187,27 @@ commands.execute = function execute(session, command, instruction)
 };
 
 
+function offer_games()
+{
+  return offer_other_games(undefined)
+}
 
-const sentinel_line = '>I don\'t know the word "---bogus".';
+function offer_other_games(bad_game)
+{
+  let output;
+  if (bad_game)
+    output = `Sorry, I don't know how to play the game ${bad_game} (yet).\nPlease enjoy one of these instead:\n`;
+  else
+    output = `Please select a game using the /frotz-game command with one of these choices:\n`;
+  
+  for (var key in games) {
+    let entry = games[key];
+    if (entry)
+      output += `${key}: ${entry.name}\n`;
+  }
+  
+  return output;
+}
 
 function filterCrud(line, index, array)
 {
