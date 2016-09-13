@@ -131,6 +131,7 @@ function get_fileobject_s3(bucket, key, filename) /* async */
 sessions.put_saved_state = function put_saved_state(session) /* async */ 
 {
   return put_session_s3(session).then( () => { 
+      fs.unlinkSync(session.save_file);
       return persist_context(session); 
     });
 };
