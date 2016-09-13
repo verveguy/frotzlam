@@ -56,7 +56,6 @@ instruction - the text of the slash command (passed to dfrotz)
 commands.execute = function execute(session, command, instruction)
 {
   let output = "To be determined...";
-  let cmd_line;
   let isNewSession = !session.had_save;
   
   switch (command) {
@@ -82,6 +81,7 @@ commands.execute = function execute(session, command, instruction)
     case '/frotz-reset':
       /* reset */
       console.log("Reset session");
+      // TODO: use slack buttons to confirm intent to reset game state
       isNewSession = true;
       instruction = "";
       /* fall through to main case */
@@ -121,39 +121,35 @@ commands.execute = function execute(session, command, instruction)
         instruction = instruction + "\n";
       }
 
-      // build up a file with cmd content
-      cmd_line = `---BOGUS SENTINEL LINE---\n\\ch1\n\\w\n${instruction}save\n${session.save_file}\n`;
-
-      if (session.had_save) {
-        // make sure we overwrite old save file
-        cmd_line  = cmd_line + 'y\n';
-      }
-      
-      if (!isNewSession) {
-        // restore the old game state if needed
-        cmd_line = `restore\n${session.save_file}\n` + cmd_line;
-      }
-
-      const cmd_file = `/tmp/${session.session_id}.in`;
-  
-      // default to zork1 if not specified. Picks up old game sessions
-      // plus defaults new (unspecified) ones
-      if (!session.hasOwnProperty('game')) {
-        console.log("Session.game missing. Setting to zork1" );
-        session.game = 'zork1';
-      }
-      
       const game = games[session.game];
       // we double-check this, since old sessions could have games that no longer exist
       if (game) {
         const gamefile = './games/' + game.filename;
       
+        // build up a file with cmd content
+        let cmd_line = `\\ch1\n\\w\n${instruction}save\n${session.save_file}\n`;
+
+        if (session.had_save) {
+          // make sure we overwrite old save file
+          cmd_line  = cmd_line + 'y\n';
+        }
+      
+        if (!isNewSession) {
+          // restore the old game state if needed
+          cmd_line = `restore\n${session.save_file}\n` + cmd_line;
+        }
+
+        // and finally, prepend any kick-start sequence
+        cmd_line = game.kickstart + cmd_line;
+        
+        const cmd_file = `/tmp/${session.session_id}.in`;
+  
         fs.writeFileSync(cmd_file, cmd_line);
 
         try {
-          console.log("Attempting dfrotz execution with cmd_file: ", cmd_line );
+          console.log("Attempting dfrotz execution with cmd_file:\n", cmd_line );
         
-          let dfrotz = `./dfrotz -S 0 -m -w 255 -i -Z 0 ${gamefile} < ${cmd_file}`;
+          let dfrotz = `./dfrotz -S 0 -m -w 255 -i -Z 0 '${gamefile}' < ${cmd_file}`;
         
           console.log('exec:', dfrotz);
           const buffer = execSync(dfrotz);
@@ -161,7 +157,7 @@ commands.execute = function execute(session, command, instruction)
           console.log("raw response: ", output);
 
           if (isNewSession) {
-            output = strip_lines(output, 1, game.postamble);
+            output = strip_lines(output, game.header, game.postamble);
           }
           else {
             output = strip_lines(output, game.preamble, game.postamble);
@@ -185,6 +181,10 @@ commands.execute = function execute(session, command, instruction)
       
       break;
     
+    default:
+      console.log("Unknown command:", command);
+      output = `I do not understand the command ${command}. Is it from my future?`;
+      break;
   }
       
   return output;
@@ -275,7 +275,7 @@ function strip_lines(text, preamble, postamble)
     const len = lines.length;
     let junk = 0;
     for (junk = 0; junk < len; junk++)
-      if (lines[junk] === sentinel_line)
+      if (lines[junk].includes(sentinel_line))
         break;
     preamble = junk;
   }
