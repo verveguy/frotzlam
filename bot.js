@@ -5,7 +5,7 @@
 
 /* 
 
-License information
+Copyright (C) Brett Adam 2016. All rights reserved.
 
 */
 
