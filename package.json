@@ -1,14 +1,14 @@
 {
   "name": "frotzlam",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Frotz on Lambda",
   "main": "bot.js",
   "dependencies": {
-      "claudia-bot-builder": "^1.4.4",
-      "aws-sdk": "^2.4.11"
+      "claudia-bot-builder": "^2.1.x",
+      "aws-sdk": "^2.6.x"
   },
   "devDependencies": {
-    "claudia": "^1.6.2",
+    "claudia": "^2.1.x",
     "ntl": "^1.1.3"
   },
   "scripts": {
