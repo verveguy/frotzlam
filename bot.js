@@ -44,7 +44,7 @@ const lambda = new AWS.Lambda();
 
 // API handler. Uses botBuilder to assemble the boilerplate functions
 
-const api = /* async */ botBuilder(function (message, apiRequest) {
+const api = /* async */ botBuilder( (message, apiRequest) => {
 
   // this is our "quick response" to ensure slack hears from us promptly.
   // See https://claudiajs.com/tutorials/slack-delayed-responses.html
