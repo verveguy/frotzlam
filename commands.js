@@ -153,7 +153,7 @@ commands.execute = function execute(session, command, instruction)
         try {
           console.log("Attempting dfrotz execution with cmd_file:\n", cmd_line );
         
-          let dfrotz = `./dfrotz -S 0 -m -w 255 -i -Z 0 '${gamefile}' < ${cmd_file}`;
+          let dfrotz = `./bin/dfrotz -S 0 -m -w 255 -i -Z 0 '${gamefile}' < ${cmd_file}`;
         
           console.log('exec:', dfrotz);
           const buffer = execSync(dfrotz);
