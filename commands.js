@@ -59,13 +59,16 @@ commands.execute = function execute(session, command, instruction)
   let output = "To be determined...";
   let isNewSession = !session.had_save;
   
+  // load games
+  games.get_games();
+
   switch (command) {
     
     case '/frotz-game':
       console.log("Load game file", instruction);
 
       //check game file first
-      if (!games[instruction]) {
+      if (!games.games[instruction]) {
         // unknown game
         console.log("Unknown game:", instruction);
         output = offer_other_games(instruction);
@@ -122,7 +125,7 @@ commands.execute = function execute(session, command, instruction)
         instruction = instruction + "\n";
       }
 
-      const game = games[session.game];
+      const game = games.games[session.game];
       // we double-check this, since old sessions could have games that no longer exist
       if (game) {
         const gamefile = './games/' + game.filename;
@@ -205,8 +208,8 @@ function offer_other_games(bad_game)
   else
     output = `Please select a game using the /frotz-game command with one of these choices:\n`;
   
-  for (var key in games) {
-    let entry = games[key];
+  for (var key in games.games) {
+    let entry = games.games[key];
     if (entry)
       output += `${key}: ${entry.name}\n`;
   }

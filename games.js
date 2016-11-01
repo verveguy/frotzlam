@@ -31,7 +31,9 @@ Consider allowing upload of your own games files. Via slack attachment?
 // TODO: note that for games where auto-detect fails, 
 // we need a last_line sentinel and set preamble = -2
 
-const games = {
+var games = {};
+
+const static_games = {
   zork1: { 
     name: "Zork I - The Great Underground Empire",
     filename: 'ZORK1.DAT', 
@@ -67,6 +69,14 @@ const games = {
   }
   
 };
+
+
+games.get_games = function ()
+{
+  // TODO: get the games from DynamoDB
+  games.games = static_games;
+}
+
 
 module.exports = games;
 
