@@ -14,7 +14,7 @@
   "scripts": {
     "test": "echo 'Error: no test specified' && exit 1",
     "create": "claudia create --region us-east-1 --policies policies --version development --timeout 10 --allow-recursion --api-module bot",
-    "deploy": "claudia update --version development",
+    "deploy": "claudia update --version development --cache-api-config apiConfig",
     "destroy": "claudia destroy",
     "configure-slack": "claudia update --version development --configure-slack-slash-app",
     "release": "claudia set-version --version latest",
