@@ -44,6 +44,21 @@ const lambda = new AWS.Lambda();
 
 // API handler. Uses botBuilder to assemble the boilerplate functions
 
+/*
+  TODO: consider whether we should also offer a "trigger-free" interface
+  using a simple Slack webhook so that any text typed in channel is 
+  interpreted as an in-game command. Thus:
+  
+  /frotz go west 
+  
+  becomes
+  
+  go west
+
+  the slackalytics integration uses claudiajs without botbuilder for
+  this purpose
+*/
+
 const api = /* async */ botBuilder( (message, apiRequest) => {
 
   // this is our "quick response" to ensure slack hears from us promptly.
