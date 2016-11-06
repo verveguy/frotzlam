@@ -4,11 +4,15 @@
   "description": "Frotz on Lambda",
   "main": "bot.js",
   "dependencies": {
-      "claudia-bot-builder": "^2.1.x",
-      "aws-sdk": "^2.6.x"
+    "claudia-bot-builder": "^2.1.x",
+    "aws-sdk": "^2.6.x"
   },
   "devDependencies": {
     "claudia": "^2.1.x",
+    "eslint": "^3.9.1",
+    "eslint-config-standard": "^6.2.1",
+    "eslint-plugin-promise": "^3.3.1",
+    "eslint-plugin-standard": "^2.0.1",
     "ntl": "^1.1.3"
   },
   "scripts": {
@@ -30,5 +34,9 @@
     "url": "https://github.com/verveguy/frotzlam/issues"
   },
   "homepage": "https://github.com/verveguy/frotzlam#readme",
-  "files": [ "*.js", "bin/dfrotz", "games"]
+  "files": [
+    "*.js",
+    "bin/dfrotz",
+    "games"
+  ]
 }
