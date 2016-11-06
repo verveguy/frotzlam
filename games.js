@@ -78,6 +78,30 @@ games.get_games = function ()
 }
 
 
+function offer_games()
+{
+  return offer_other_games(undefined)
+}
+games.offer_games = offer_games;
+
+function offer_other_games(bad_game)
+{
+  let output;
+  if (bad_game)
+    output = `Sorry, I don't know how to play the game ${bad_game} (yet).\nPlease enjoy one of these instead:\n`;
+  else
+    output = `Please select a game using the /frotz-game command with one of these choices:\n`;
+  
+  for (var key in games.games) {
+    let entry = games.games[key];
+    if (entry)
+      output += `${key}: ${entry.name}\n`;
+  }
+  
+  return output;
+}
+games.offer_other_games = offer_other_games;
+
 module.exports = games;
 
 

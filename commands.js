@@ -71,7 +71,7 @@ commands.execute = function execute(session, command, instruction)
       if (!games.games[instruction]) {
         // unknown game
         console.log("Unknown game:", instruction);
-        output = offer_other_games(instruction);
+        output = games.offer_other_games(instruction);
         break;
       }
       
@@ -96,7 +96,7 @@ commands.execute = function execute(session, command, instruction)
       if (!session.hasOwnProperty('game')) {
         if (isNewSession) {
           console.log("New session, unknown game." );
-          output = offer_games();
+          output = games.offer_games();
           break;
         }
         else {
@@ -194,28 +194,6 @@ commands.execute = function execute(session, command, instruction)
   return output;
 };
 
-
-function offer_games()
-{
-  return offer_other_games(undefined)
-}
-
-function offer_other_games(bad_game)
-{
-  let output;
-  if (bad_game)
-    output = `Sorry, I don't know how to play the game ${bad_game} (yet).\nPlease enjoy one of these instead:\n`;
-  else
-    output = `Please select a game using the /frotz-game command with one of these choices:\n`;
-  
-  for (var key in games.games) {
-    let entry = games.games[key];
-    if (entry)
-      output += `${key}: ${entry.name}\n`;
-  }
-  
-  return output;
-}
 
 function filterCrud(line, index, array)
 {
