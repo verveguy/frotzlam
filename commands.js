@@ -57,7 +57,6 @@ commands.execute = function execute (session, command, instruction)
 
   /* eslint no-fallthrough: 0 */
   switch (command) {
-
     case '/frotz-game':
       console.log('Load game file', instruction)
 
@@ -145,14 +144,15 @@ commands.execute = function execute (session, command, instruction)
         fs.writeFileSync(cmd_file, cmd_line)
 
         try {
-          console.log('Attempting dfrotz execution with cmd_file:\n', cmd_line)
+          // console.log('Attempting dfrotz execution with cmd_file:\n', cmd_line)
 
-          let dfrotz = `./bin/dfrotz -S 0 -m -w 255 -i -Z 0 '${gamefile}' < ${cmd_file}`
+          // let dfrotz = `./bin/dfrotz -S 0 -m -w 255 -i -Z 0 '${gamefile}' < ${cmd_file}`
+          let dfrotz = `./bin/dfrotz.mac -S 0 -m -w 255 -i -Z 0 '${gamefile}' < ${cmd_file}`
 
-          console.log('exec:', dfrotz)
+          // console.log('exec:', dfrotz)
           const buffer = execSync(dfrotz)
           output = `${buffer}`
-          console.log('raw response: ', output)
+          // console.log('raw response: ', output)
 
           if (isNewSession) {
             output = strip_lines(output, game.header, game.postamble)
@@ -160,7 +160,6 @@ commands.execute = function execute (session, command, instruction)
           else {
             output = strip_lines(output, game.preamble, game.postamble)
           }
-          console.log('other side of strip')
         }
         catch (err) {
           output = `${err.stdout}`
@@ -225,7 +224,7 @@ function strip_carets (arr)
 {
   const len = arr.length
   for (var i = 0; i < len; i++)
-    { strip_carets_line(arr, i) }
+  { strip_carets_line(arr, i) }
   return arr
 }
 
@@ -241,8 +240,10 @@ function strip_lines (text, preamble, postamble)
     const len = lines.length
     let junk = 0
     for (junk = 0; junk < len; junk++)
-      { if (lines[junk].includes(sentinel_line))
-        { break } }
+    {
+      if (lines[junk].includes(sentinel_line))
+      { break }
+    }
     preamble = junk
   }
 

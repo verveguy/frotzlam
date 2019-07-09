@@ -32,14 +32,14 @@ sessions.get_saved_state = /* async */ function get_saved_state (session_id)
   console.log('Fetching saves for:', session_id)
 
   return restore_context(session_id)
-      .then((session) => {
-        if (!session) {
-          console.log('dynamo session undefined')
-          session = { session_id: session_id, counter: 0 }
-        }
-        console.log('CONTEXT:', JSON.stringify(session))
-        return fetch_saves(session)
-      })
+    .then((session) => {
+      if (!session) {
+        console.log('dynamo session undefined')
+        session = { session_id: session_id, counter: 0 }
+      }
+      console.log('CONTEXT:', JSON.stringify(session))
+      return fetch_saves(session)
+    })
 }
 
 function session_filename (session_id)
@@ -72,17 +72,17 @@ function fetch_saves (session) /* async */
         return session
       }
     })
-  /* eslint handle-callback-err: 0 */
-  .catch((error) => {
-    console.log('Failed to fetch state. Proceeding as new session')
-    // console.dir(error)
-    // we continue, this isn't an error per se
-    session.had_save = false
-    // still need to set this for saving the initial game state
-    session.save_file = session_filename(session.session_id)
+    /* eslint handle-callback-err: 0 */
+    .catch((error) => {
+      console.log('Failed to fetch state. Proceeding as new session')
+      // console.dir(error)
+      // we continue, this isn't an error per se
+      session.had_save = false
+      // still need to set this for saving the initial game state
+      session.save_file = session_filename(session.session_id)
 
-    return session
-  })
+      return session
+    })
 }
 
 function get_session_s3 (session_id) /* async */
@@ -93,27 +93,27 @@ function get_session_s3 (session_id) /* async */
 function get_fileobject_s3 (bucket, key, filename) /* async */
 {
   return Promise.resolve()
-  .then(() => {
-    // check if the stupid object exists with headObject
-    let s3 = new AWS.S3()
-    return s3.headObject({ Bucket: bucket, Key: key }).promise()
     .then(() => {
-      return new Promise((resolve, reject) => {
-        let file = fs.createWriteStream(filename)
-        file.on('finish', () => resolve(filename))
-        file.on('error', (error) => {
-          console.error('S3 get failed with error', error)
-          reject(error)
+      // check if the stupid object exists with headObject
+      let s3 = new AWS.S3()
+      return s3.headObject({ Bucket: bucket, Key: key }).promise()
+        .then(() => {
+          return new Promise((resolve, reject) => {
+            let file = fs.createWriteStream(filename)
+            file.on('finish', () => resolve(filename))
+            file.on('error', (error) => {
+              console.error('S3 get failed with error', error)
+              reject(error)
+            })
+            let s3 = new AWS.S3()
+            s3.getObject({Bucket: bucket, Key: key}).createReadStream().pipe(file)
+          })
         })
-        let s3 = new AWS.S3()
-        s3.getObject({Bucket: bucket, Key: key}).createReadStream().pipe(file)
-      })
+        .catch((error) => {
+          console.error('S3 head failed with error', error)
+          throw error
+        })
     })
-    .catch((error) => {
-      console.error('S3 head failed with error', error)
-      throw error
-    })
-  })
 }
 
 // put the save file back into a lambda-safe cache
@@ -131,14 +131,14 @@ function put_session_s3 (session) /* async */
   let filename = session.save_file
 
   return safeCreateReadStream(filename)
-  .then((stream) => {
-    var s3 = new AWS.S3({params: { Bucket: S3_BUCKET_NAME, Key: session.session_id }})
-    return s3.putObject({Body: stream}).promise()
-  })
-  .catch((error) => {
-    console.error('S3 put failed with error', error)
-    throw new Error(error)
-  })
+    .then((stream) => {
+      var s3 = new AWS.S3({params: { Bucket: S3_BUCKET_NAME, Key: session.session_id }})
+      return s3.putObject({Body: stream}).promise()
+    })
+    .catch((error) => {
+      console.error('S3 put failed with error', error)
+      throw new Error(error)
+    })
 }
 
 function /* async */ safeCreateReadStream (filename) {
@@ -170,9 +170,9 @@ function restore_context (session_id)
   }
 
   return dynamodb.get(params).promise()
-  .then((data) => {
-    return data.Item
-  })
+    .then((data) => {
+      return data.Item
+    })
 }
 
 // persist context to dynamodb
@@ -189,4 +189,3 @@ function persist_context (session)
 
   return dynamodb.put(params).promise()
 }
-

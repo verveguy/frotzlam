@@ -1,0 +1,24 @@
+[
+  {
+    "originalRequest": {
+      "channel_id": "0",
+      "command": "/frotz-game"
+    },
+    "text": "zork1"
+  },
+  {
+    "originalRequest": {
+      "channel_id": "0",
+      "command": "/f"
+    },
+    "text": "look"
+  },
+  {
+    "originalRequest": {
+      "channel_id": "0",
+      "command": "/f"
+    },
+    "text": "open mailbox"
+  }
+]
+

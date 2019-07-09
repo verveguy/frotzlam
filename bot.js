@@ -53,7 +53,7 @@ const lambda = new AWS.Lambda()
   this purpose
 */
 
-const api = /* async */ botBuilder((message, apiRequest) =>
+const api = botBuilder((message, apiRequest) => /* async */
 {
   // this is our "quick response" to ensure slack hears from us promptly.
   // See https://claudiajs.com/tutorials/slack-delayed-responses.html
@@ -87,12 +87,14 @@ api.intercept((event) =>
   // if this is a normal web request, let it run
   if (!event.slackEvent) { return event }
 
-  return perform_slack_command(event.slackEvent)
+  return api.perform_slack_command(event.slackEvent)
 })
 
-const slackDelayedReply = botBuilder.slackDelayedReply
+// use the built-in delayed reply handler
+// NOTE: we expose this so testing can override
+api.delayedReply = botBuilder.slackDelayedReply
 
-function /* async */ perform_slack_command (message)
+api.perform_slack_command = (message) => /* async */
 {
   // we use slack channel ID as session ID "one game per channel"
   let session_id = message.originalRequest.channel_id
@@ -101,62 +103,62 @@ function /* async */ perform_slack_command (message)
 
   // first, get the saved session state, if any
   return sessions.get_saved_state(session_id)
-  .then((session) => {
+    .then((session) => {
     // then execute the actual command (sync)
-    let result = commands.execute(session, command, text)
+      let result = commands.execute(session, command, text)
 
-    // then put the save file (async nested promise)
-    return sessions.put_saved_state(session)
+      // then put the save file (async nested promise)
+      return sessions.put_saved_state(session)
+        .then(() => {
+          console.log('Put (save) session logically complete')
+          return result
+        })
+        .catch(() => {
+          console.error('Put (save) session failed')
+          return result
+        })
+    })
+    .then((output) => {
+      let reply_text
+      let reply = output
+      if (message.type === 'slack-slash-command')
+      {
+        const SlackTemplate = botBuilder.slackTemplate
+        const response = new SlackTemplate(reply)
+        response.channelMessage(true).disableMarkdown(true)
+        reply = response.get()
+        reply_text = reply.text
+      } else {
+        reply_text = reply
+      }
+      // finally, resolve with this response
+      console.log('response: ', reply_text)
+      return api.delayedReply(message, reply)
+    })
     .then(() => {
-      console.log('Put (save) session logically complete')
-      return result
+      console.log('DONE')
+      return false // prevent normal execution
     })
-    .catch(() => {
-      console.error('Put (save) session failed')
-      return result
+    .catch((error) => {
+      let reply_text
+      let reply = 'error: ' + error
+      if (message.type === 'slack-slash-command') {
+        const SlackTemplate = botBuilder.slackTemplate
+        let response = new SlackTemplate(reply)
+        response.channelMessage(true).disableMarkdown(true)
+        reply = response.get()
+        reply_text = reply.text
+      } else {
+        reply_text = reply
+      }
+      // finally, resolve with this response
+      console.error('error response: ', reply_text)
+      return api.delayedReply(message, reply)
+        .then(() => {
+          console.log('DONE')
+          return false // prevent normal execution
+        })
     })
-  })
-  .then((output) => {
-    let reply_text
-    let reply = output
-    if (message.type === 'slack-slash-command')
-    {
-      const slackTemplate = botBuilder.slackTemplate
-      const response = new slackTemplate(reply)
-      response.channelMessage(true).disableMarkdown(true)
-      reply = response.get()
-      reply_text = reply.text
-    } else {
-      reply_text = reply
-    }
-    // finally, resolve with this response
-    console.log('response: ', reply_text)
-    return slackDelayedReply(message, reply)
-  })
-  .then(() => {
-    console.log('DONE')
-    return false // prevent normal execution
-  })
-  .catch((error) => {
-    let reply_text
-    let reply = 'error: ' + error
-    if (message.type === 'slack-slash-command') {
-      const slackTemplate = botBuilder.slackTemplate
-      let response = new slackTemplate(reply)
-      response.channelMessage(true).disableMarkdown(true)
-      reply = response.get()
-      reply_text = reply.text
-    } else {
-      reply_text = reply
-    }
-    // finally, resolve with this response
-    console.error('error response: ', reply_text)
-    return slackDelayedReply(message, reply)
-      .then(() => {
-        console.log('DONE')
-        return false // prevent normal execution
-      })
-  })
 }
 
 // export our api functions
